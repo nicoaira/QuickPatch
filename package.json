@@ -1,8 +1,8 @@
 {
   "name": "quick-diff-apply",
   "displayName": "Quick Diff Apply",
-  "description": "Applies a unified diff from the clipboard.",
-  "version": "0.0.1",
+  "description": "Applies a unified diff from the clipboard with interactive hunk-level review.",
+  "version": "0.0.2",
   "engines": {
     "vscode": "^1.99.0"
   },
@@ -22,6 +22,26 @@
       {
         "command": "quick-diff-apply.applyDiff",
         "title": "Apply Diff from Clipboard",
+        "category": "Quick Diff Apply"
+      },
+      {
+        "command": "quick-diff-apply.applyHunkOnly",
+        "title": "Apply this Hunk",
+        "category": "Quick Diff Apply"
+      },
+      {
+        "command": "quick-diff-apply.skipHunk",
+        "title": "Reject this Hunk",
+        "category": "Quick Diff Apply"
+      },
+      {
+        "command": "quick-diff-apply.applyAllRemainingInFile",
+        "title": "Apply All Remaining Hunks in File",
+        "category": "Quick Diff Apply"
+      },
+      {
+        "command": "quick-diff-apply.discardAllInFile",
+        "title": "Discard All Changes in File",
         "category": "Quick Diff Apply"
       }
     ],
