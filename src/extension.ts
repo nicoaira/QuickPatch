@@ -2,6 +2,48 @@
 // Import the module and reference it with the alias vscode in your code below
 import * as vscode from 'vscode';
 import parseDiff, { File, Chunk, Change } from 'parse-diff'; // Corrected import, added Chunk and Change
+import * as nodeFs from 'node:fs'; // Renamed to avoid conflict with vscode.fs
+import * as nodePath from 'node:path'; // Renamed to avoid conflict
+import * as os from 'node:os'; // Explicitly use node:os
+
+// Helper function to apply patch to content (can be extracted or remain inline)
+function applyPatchToContent(originalContent: string, fileDiff: File): string {
+    const lines = originalContent.split('\n');
+    let newLines = [...lines];
+
+    // Apply chunks in reverse to avoid line number shifts
+    for (let i = fileDiff.chunks.length - 1; i >= 0; i--) {
+        const chunk = fileDiff.chunks[i];
+        let currentPositionInNewLines = chunk.newStart - 1; // 0-indexed
+
+        // Ensure currentPositionInNewLines is not negative, especially for new files or empty files
+        if (currentPositionInNewLines < 0) currentPositionInNewLines = 0;
+
+        const linesToRemove = chunk.changes.filter((c: Change) => c.type === 'del' || c.type === 'normal').length;
+        const linesToAdd = chunk.changes
+            .filter((c: Change) => c.type === 'add' || c.type === 'normal')
+            .map((c: Change) => c.content.substring(1));
+        
+        newLines.splice(currentPositionInNewLines, linesToRemove, ...linesToAdd);
+    }
+    return newLines.join('\n');
+}
+
+function getNewFileContentFromDiff(fileDiff: File): string {
+    let newFileContent = '';
+    for (const chunk of fileDiff.chunks) {
+        for (const change of chunk.changes) {
+            if (change.type === 'add') {
+                newFileContent += change.content.substring(1) + '\n';
+            }
+        }
+    }
+    // Remove trailing newline if present, as it might be added by the loop
+    if (newFileContent.endsWith('\n')) {
+        newFileContent = newFileContent.slice(0, -1);
+    }
+    return newFileContent;
+}
 
 // This method is called when your extension is activated
 // Your extension is activated the very first time the command is executed
@@ -15,6 +57,7 @@ export function activate(context: vscode.ExtensionContext) {
 	// Now provide the implementation of the command with registerCommand
 	// The commandId parameter must match the command field in package.json
 	const applyDiffCommand = vscode.commands.registerCommand('quick-diff-apply.applyDiff', async () => {
+        let tempDir: string | undefined;
 		try {
 			const diffText = await vscode.env.clipboard.readText();
 			if (!diffText) {
@@ -22,181 +65,181 @@ export function activate(context: vscode.ExtensionContext) {
 				return;
 			}
 
-			const files: File[] = parseDiff(diffText); // Corrected usage and added type
-			if (files.length === 0) {
+			const parsedFiles: File[] = parseDiff(diffText);
+			if (parsedFiles.length === 0) {
 				vscode.window.showWarningMessage('No diff information found in clipboard content.');
 				return;
 			}
 
-			// --- User Confirmation ---
-			const affectedFiles = files.map((file: File) => file.to || file.from || 'unknown'); // Added type for file
-			const confirmation = await vscode.window.showInformationMessage(
-				`Apply changes to the following files?\n${affectedFiles.join('\n')}`,
-				{ modal: true },
-				'Proceed'
-			);
+			const workspaceRootUri = vscode.workspace.workspaceFolders?.[0]?.uri;
+            if (!workspaceRootUri) {
+                vscode.window.showErrorMessage('No workspace folder open.');
+                return;
+            }
+            const workspaceRootPath = workspaceRootUri.fsPath;
 
-			if (confirmation !== 'Proceed') {
-				vscode.window.showInformationMessage('Diff application cancelled.');
-				return;
-			}
-			// --- End User Confirmation ---
+            // Create a temporary directory for patched files
+            tempDir = nodeFs.mkdtempSync(nodePath.join(os.tmpdir(), 'vscode-quick-diff-apply-'));
 
+            const previewsToShow: Array<{ originalUri: vscode.Uri, patchedUri: vscode.Uri, displayName: string, file: File }> = [];
+            const filesToCleanup: vscode.Uri[] = [];
 
-			const workspaceEdit = new vscode.WorkspaceEdit();
-			const workspaceRoot = vscode.workspace.workspaceFolders?.[0]?.uri;
+            for (const file of parsedFiles) {
+                const targetPath = file.to || file.from;
+                if (!targetPath || targetPath === '/dev/null' && !file.from && !file.to ) continue; // Skip if no path info
 
-			if (!workspaceRoot) {
-				vscode.window.showErrorMessage('No workspace folder open.');
-				return;
-			}
+                let originalUri: vscode.Uri;
+                let patchedUri: vscode.Uri;
+                let displayName = nodePath.basename(targetPath === '/dev/null' ? (file.from || 'unknown') : targetPath);
+                
+                const tempOriginalFilePath = nodePath.join(tempDir, `original-${Date.now()}-${displayName}`);
+                const tempPatchedFilePath = nodePath.join(tempDir, `patched-${Date.now()}-${displayName}`);
 
-			let changesApplied = 0;
-			let errorsEncountered = 0;
+                if (file.new || file.from === '/dev/null') { // New file
+                    displayName = nodePath.basename(file.to || 'new-file');
+                    const newContent = getNewFileContentFromDiff(file);
+                    nodeFs.writeFileSync(tempOriginalFilePath, ''); // Empty original for new file diff
+                    nodeFs.writeFileSync(tempPatchedFilePath, newContent);
+                    originalUri = vscode.Uri.file(tempOriginalFilePath);
+                    patchedUri = vscode.Uri.file(tempPatchedFilePath);
+                    filesToCleanup.push(originalUri, patchedUri);
+                } else if (file.deleted || file.to === '/dev/null') { // Deleted file
+                    displayName = nodePath.basename(file.from || 'deleted-file');
+                    const actualFileUri = vscode.Uri.joinPath(workspaceRootUri, file.from!);
+                    try {
+                        const originalContent = Buffer.from(await vscode.workspace.fs.readFile(actualFileUri)).toString('utf8');
+                        nodeFs.writeFileSync(tempOriginalFilePath, originalContent);
+                        originalUri = vscode.Uri.file(tempOriginalFilePath); // Show actual content that will be deleted
+                    } catch (e) {
+                        // If original file doesn't exist, diff original (empty) vs patched (empty)
+                        console.warn(`Original file for deletion not found: ${file.from}, showing empty diff.`);
+                        nodeFs.writeFileSync(tempOriginalFilePath, '');
+                        originalUri = vscode.Uri.file(tempOriginalFilePath);
+                    }
+                    nodeFs.writeFileSync(tempPatchedFilePath, ''); // Empty patched content for deleted file
+                    patchedUri = vscode.Uri.file(tempPatchedFilePath);
+                    filesToCleanup.push(originalUri, patchedUri); // originalUri might be a real file if read fails
+                } else { // Modified file
+                    displayName = nodePath.basename(file.to || file.from || 'modified-file');
+                    const actualFileUri = vscode.Uri.joinPath(workspaceRootUri, file.to || file.from!);
+                    let originalContent = '';
+                    try {
+                        originalContent = Buffer.from(await vscode.workspace.fs.readFile(actualFileUri)).toString('utf8');
+                    } catch (e) {
+                        vscode.window.showWarningMessage(`File not found in workspace, cannot apply patch or show diff: ${file.to || file.from}`);
+                        // Optionally, allow creating it as a new file if it doesn't exist but diff implies modification
+                        // For now, we skip if original is not found for modification.
+                        continue;
+                    }
+                    const patchedContent = applyPatchToContent(originalContent, file);
+                    originalUri = actualFileUri; // Use the actual workspace file for the left side of the diff
+                    nodeFs.writeFileSync(tempPatchedFilePath, patchedContent);
+                    patchedUri = vscode.Uri.file(tempPatchedFilePath);
+                    filesToCleanup.push(patchedUri); // Only temp patched file needs cleanup here
+                }
+                previewsToShow.push({ originalUri, patchedUri, displayName, file });
+            }
 
-			for (const file of files) {
-				const filePath = file.to || file.from;
-				if (!filePath || filePath === '/dev/null') {
-					// Handle cases like git new file mode or deleted file mode where one path is /dev/null
-					if (file.to === '/dev/null' && file.from) { // File deletion
-						const fileUri = vscode.Uri.joinPath(workspaceRoot, file.from);
-						try {
-							await vscode.workspace.fs.stat(fileUri); // Check if file exists
-							workspaceEdit.deleteFile(fileUri, { ignoreIfNotExists: true });
-							changesApplied++;
-						} catch (e) {
-							// File doesn't exist, which is fine for a delete operation in a diff
-							// Or it might be a directory, which we are not handling for deletion here.
-							console.warn(`Skipping deletion of non-existent or directory: ${file.from}`);
-						}
-					} else if (file.from === '/dev/null' && file.to) { // File creation
-						const fileUri = vscode.Uri.joinPath(workspaceRoot, file.to);
-						// Create an empty file first, then apply chunks.
-						// parse-diff doesn't give the full new file content directly for new files,
-						// so we build it line by line from chunks.
-						let newFileContent = '';
-						for (const chunk of file.chunks) { // Changed hunks to chunks, chunk type is Chunk
-							for (const change of chunk.changes) { // change type is Change
-								if (change.type === 'add') {
-									newFileContent += change.content.substring(1) + '\n';
-								}
-							}
-						}
-						// Remove trailing newline if present, as VS Code might add one
-						if (newFileContent.endsWith('\n')) {
-							newFileContent = newFileContent.slice(0, -1);
-						}
-						workspaceEdit.createFile(fileUri, { ignoreIfExists: false, contents: Buffer.from(newFileContent) });
-						changesApplied++;
-					}
-					continue;
-				}
+            if (previewsToShow.length === 0) {
+                vscode.window.showInformationMessage('No changes to preview or apply.');
+                return;
+            }
 
-				const fileUri = vscode.Uri.joinPath(workspaceRoot, filePath);
+            for (const preview of previewsToShow) {
+                await vscode.commands.executeCommand('vscode.diff', preview.originalUri, preview.patchedUri, `Preview: ${preview.displayName}`);
+            }
 
-				try {
-					let originalContent = '';
-					let fileExists = false;
-					try {
-						const fileStat = await vscode.workspace.fs.stat(fileUri);
-						if (fileStat.type === vscode.FileType.File) {
-							const fileContent = await vscode.workspace.fs.readFile(fileUri);
-							originalContent = Buffer.from(fileContent).toString('utf8');
-							fileExists = true;
-						} else {
-							vscode.window.showErrorMessage(`Path exists but is not a file: ${filePath}`);
-							errorsEncountered++;
-							continue;
-						}
-					} catch (e) {
-						// File does not exist, check if it's a new file in the diff
-						if (!(file.new && file.newMode)) {
-							vscode.window.showErrorMessage(`File not found and not marked as new: ${filePath}`);
-							errorsEncountered++;
-							continue;
-						}
-					}
+            const confirmation = await vscode.window.showInformationMessage(
+                `You have reviewed ${previewsToShow.length} file(s). Apply these changes to your workspace?`,
+                { modal: true },
+                'Apply All Changes', 'Discard All'
+            );
 
-					if (file.new && file.newMode && !fileExists) { // Creating a new file
-						let newFileContent = '';
-						file.chunks.forEach((chunk: Chunk) => { // Changed hunks to chunks, explicitly typed chunk
-							chunk.changes.forEach((change: Change) => { // Explicitly typed change
-								if (change.type === 'add') {
-									newFileContent += change.content.substring(1) + '\n';
-								}
-							});
-						});
-						// Remove trailing newline if present
-						if (newFileContent.endsWith('\n')) {
-							newFileContent = newFileContent.slice(0, -1);
-						}
-						workspaceEdit.createFile(fileUri, { ignoreIfExists: true, contents: Buffer.from(newFileContent) });
-						changesApplied++;
-					} else if (fileExists) { // Patching an existing file
-						const lines = originalContent.split('\n');
-						let newLines = [...lines]; // Work on a copy
+            if (confirmation === 'Apply All Changes') {
+                const workspaceEdit = new vscode.WorkspaceEdit();
+                let changesAppliedCount = 0;
+                let errorsEncounteredCount = 0;
 
-						// Apply chunks in reverse to avoid line number shifts
-						for (let i = file.chunks.length - 1; i >= 0; i--) { // Changed hunks to chunks
-							const chunk = file.chunks[i]; // Changed hunk to chunk
-							let currentPositionInNewLines = chunk.newStart -1; // 0-indexed
+                for (const preview of previewsToShow) {
+                    const fileDiff = preview.file;
+                    const filePathInDiff = fileDiff.to || fileDiff.from;
+                    if (!filePathInDiff) continue;
 
-							// Verify chunk applicability (simple check)
-                            // A more robust check would compare context lines from the diff with actual file content.
-                            // For simplicity, we are trusting the line numbers from the diff.
+                    const targetUri = vscode.Uri.joinPath(workspaceRootUri, filePathInDiff);
 
-							const linesToRemove = chunk.changes.filter((c: Change) => c.type === 'del' || c.type === 'normal').length; // Explicitly typed c
-							const linesToAdd = chunk.changes.filter((c: Change) => c.type === 'add' || c.type === 'normal').map((c: Change) => c.content.substring(1)); // Explicitly typed c
+                    try {
+                        if (fileDiff.new || fileDiff.from === '/dev/null') {
+                            const newContent = getNewFileContentFromDiff(fileDiff);
+                            // Check if file already exists to avoid overwrite error from createFile if not desired
+                            try {
+                                await vscode.workspace.fs.stat(targetUri);
+                                // File exists, decide if we should overwrite or error.
+                                // For now, let's use replace for simplicity if it exists, or create if not.
+                                // This part might need more robust handling based on desired UX.
+                                const existingContent = Buffer.from(await vscode.workspace.fs.readFile(targetUri)).toString('utf8').split('\n');
+                                const fullRange = new vscode.Range(new vscode.Position(0,0), new vscode.Position(existingContent.length, existingContent[existingContent.length-1]?.length || 0));
+                                workspaceEdit.replace(targetUri, fullRange, newContent);
+                            } catch (e) {
+                                // File does not exist, safe to create
+                                workspaceEdit.createFile(targetUri, { ignoreIfExists: false, contents: Buffer.from(newContent) });
+                            }
+                            changesAppliedCount++;
+                        } else if (fileDiff.deleted || fileDiff.to === '/dev/null') {
+                            const deleteUri = vscode.Uri.joinPath(workspaceRootUri, fileDiff.from!);
+                            workspaceEdit.deleteFile(deleteUri, { ignoreIfNotExists: true });
+                            changesAppliedCount++;
+                        } else { // Modified file
+                            const originalFileContent = Buffer.from(await vscode.workspace.fs.readFile(targetUri)).toString('utf8');
+                            const patchedContent = applyPatchToContent(originalFileContent, fileDiff);
+                            const originalLines = originalFileContent.split('\n');
+                            const fullRange = new vscode.Range(
+                                new vscode.Position(0, 0),
+                                new vscode.Position(originalLines.length, originalLines[originalLines.length - 1]?.length || 0)
+                            );
+                            workspaceEdit.replace(targetUri, fullRange, patchedContent);
+                            changesAppliedCount++;
+                        }
+                    } catch (error: any) {
+                        console.error(`Error preparing edit for ${filePathInDiff}:`, error);
+                        vscode.window.showErrorMessage(`Failed to prepare changes for ${filePathInDiff}: ${error.message}`);
+                        errorsEncounteredCount++;
+                    }
+                }
 
-							newLines.splice(currentPositionInNewLines, linesToRemove, ...linesToAdd);
-						}
-
-						const newContent = newLines.join('\n');
-						const fullRange = new vscode.Range(
-							new vscode.Position(0, 0),
-							new vscode.Position(lines.length, lines[lines.length - 1]?.length || 0)
-						);
-						workspaceEdit.replace(fileUri, fullRange, newContent);
-						changesApplied++;
-					} else if (file.deleted && file.oldMode && fileExists) { // Deleting a file; Changed delete to deleted
-						workspaceEdit.deleteFile(fileUri, { ignoreIfNotExists: true });
-						changesApplied++;
-					}
-
-
-				} catch (error: any) {
-					console.error(`Error processing file ${filePath}:`, error);
-					vscode.window.showErrorMessage(`Failed to process ${filePath}: ${error.message}`);
-					errorsEncountered++;
-				}
-			}
-
-			if (errorsEncountered > 0 && changesApplied > 0) {
-				// Partial success, ask user if they want to apply successful changes
-				const choice = await vscode.window.showWarningMessage(
-					`Encountered ${errorsEncountered} error(s) while processing the diff. ${changesApplied} file(s) can be changed successfully. Apply successful changes?`,
-					{ modal: true },
-					"Apply Successful", "Discard All"
-				);
-				if (choice === "Apply Successful") {
-					await vscode.workspace.applyEdit(workspaceEdit);
-					vscode.window.showInformationMessage(`Diff applied to ${changesApplied} file(s) with ${errorsEncountered} error(s).`);
-				} else {
-					vscode.window.showInformationMessage('Diff application aborted due to errors.');
-				}
-			} else if (errorsEncountered > 0 && changesApplied === 0) {
-				vscode.window.showErrorMessage(`Failed to apply diff: ${errorsEncountered} error(s) encountered and no files could be changed.`);
-			} else if (changesApplied > 0) {
-				await vscode.workspace.applyEdit(workspaceEdit);
-				vscode.window.showInformationMessage(`Diff applied successfully to ${changesApplied} file(s).`);
-			} else {
-				vscode.window.showInformationMessage('No changes to apply from the diff.');
-			}
+                if (errorsEncounteredCount > 0 && changesAppliedCount > 0) {
+                    const choice = await vscode.window.showWarningMessage(
+                        `Encountered ${errorsEncounteredCount} error(s) while preparing changes. ${changesAppliedCount} file(s) can still be applied. Proceed?`,
+                        { modal: true },
+                        "Apply Successful", "Discard All"
+                    );
+                    if (choice === "Apply Successful") {
+                        await vscode.workspace.applyEdit(workspaceEdit);
+                        vscode.window.showInformationMessage(`Diff applied to ${changesAppliedCount} file(s) with ${errorsEncounteredCount} error(s).`);
+                    } else {
+                        vscode.window.showInformationMessage('Diff application aborted due to errors during preparation.');
+                    }
+                } else if (errorsEncounteredCount > 0 && changesAppliedCount === 0) {
+                    vscode.window.showErrorMessage(`Failed to apply diff: ${errorsEncounteredCount} error(s) encountered and no files could be prepared.`);
+                } else if (changesAppliedCount > 0) {
+                    await vscode.workspace.applyEdit(workspaceEdit);
+                    vscode.window.showInformationMessage(`Diff applied successfully to ${changesAppliedCount} file(s).`);
+                } else {
+                    vscode.window.showInformationMessage('No changes were applied from the diff.');
+                }
+            }
 
 		} catch (error: any) {
-			console.error('Error applying diff:', error);
-			vscode.window.showErrorMessage(`Failed to apply diff: ${error.message}`);
-		}
+			console.error('Error applying diff with preview:', error);
+			vscode.window.showErrorMessage(`Failed to apply diff with preview: ${error.message}`);
+		} finally {
+            if (tempDir) {
+                try {
+                    nodeFs.rmSync(tempDir, { recursive: true, force: true });
+                } catch (e) {
+                    console.error('Failed to clean up temporary directory:', tempDir, e);
+                }
+            }
+        }
 	});
 
 	context.subscriptions.push(applyDiffCommand);
