@@ -24,7 +24,16 @@
         "title": "Apply Diff from Clipboard",
         "category": "Quick Diff Apply"
       }
-    ]
+    ],
+    "menus": {
+      "explorer/context": [
+        {
+          "command": "quick-diff-apply.applyDiff",
+          "when": "resourceScheme == 'file'",
+          "group": "navigation@5"
+        }
+      ]
+    }
   },
   "scripts": {
     "vscode:prepublish": "npm run package",
