@@ -1,5 +1,5 @@
 --- pair7/original.txt	2025-05-23 15:29:49.836055566 +0200
-+++ pair7/modified.txt	2025-05-23 15:29:55.264096001 +0200
++++ pair7/expected.txt	2025-05-23 15:29:55.264096001 +0200
 @@ -1,20 +1,20 @@
 -1  Marketing Strategy Workshop – Agenda  
 -2  Date: 2025-06-02  

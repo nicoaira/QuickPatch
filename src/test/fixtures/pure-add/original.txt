@@ -1,9 +1,8 @@
-Chapter 1: The Beginning
-The wind howled.
-Rain lashed against the window panes.
-It was a dark and stormy night.
-A lone figure walked down the street.
+alpha
 gamma
 delta
-alpha
+gamma
+delta
 beta
+Chapter 1: The Beginning
+It was a dark and stormy night.

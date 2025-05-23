@@ -1,5 +1,5 @@
 --- pair2/original.txt	2025-05-23 15:28:54.838634587 +0200
-+++ pair2/modified.txt	2025-05-23 15:28:58.163660644 +0200
++++ pair2/expected.txt	2025-05-23 15:28:58.163660644 +0200
 @@ -1,20 +1,20 @@
 -1  Grandma’s Classic Chocolate Chip Cookies  
 +1  Grandma’s Ultimate Double-Chocolate Chip Cookies  

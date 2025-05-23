@@ -1,5 +1,5 @@
 --- pair1/original.txt	2025-05-23 15:28:42.612538076 +0200
-+++ pair1/modified.txt	2025-05-23 15:28:45.221558765 +0200
++++ pair1/expected.txt	2025-05-23 15:28:45.221558765 +0200
 @@ -1,20 +1,20 @@
 -1  Welcome to TechBytes Weekly, your go-to source for the latest in tech.  
 -2  In this week’s issue, we cover AI advancements, cybersecurity tips,  

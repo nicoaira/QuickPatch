@@ -1,20 +1,20 @@
-1  Project Phoenix – Team Sync Notes  
+1  Project Phoenix – Team Meeting Minutes  
 2  Date: 2025-05-10  
-3  Participants: Alice, Bob, Carlos, Diana, Elena  
+3  Attendees: Alice, Bob, Carlos, Diana  
 4  
-5  1. Milestone Check  
-6     • Phase 1 formally signed off; Phase 2 begins May 17.  
-7     • Bob will secure additional QA resources by Wed.  
+5  1. Timeline Review  
+6     • Phase 1 complete; Phase 2 kickoff next week.  
+7     • Bob to finalize resource allocation by Monday.  
 8  
-9  2. Risk & Mitigation  
-10    • Noted vendor shipment delays risk.  
-11    • Diana and Elena to co-author backup schedule.  
+9  2. Risk Assessment  
+10    • Identified potential vendor delays.  
+11    • Diana to draft mitigation plan.  
 12  
-13  3. UI/UX Review  
-14    • Carlos demoed updated dashboard mockups.  
-15    • Approved color scheme and iconography tweaks.  
+13  3. Feature Specification  
+14    • Carlos presented wireframes for dashboard.  
+15    • Team approved UI changes.  
 16  
-17  4. Action Items  
-18    • Set up user pilot sessions May 24–28.  
-19    • Draft stakeholder demo outline by May 20.  
+17  4. Next Steps  
+18    • Schedule user testing sessions.  
+19    • Prepare demo for stakeholders.  
 20  

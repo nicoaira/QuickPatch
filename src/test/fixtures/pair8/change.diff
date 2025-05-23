@@ -1,5 +1,5 @@
 --- pair8/original.txt	2025-05-23 15:30:00.525135009 +0200
-+++ pair8/modified.txt	2025-05-23 15:30:06.918182172 +0200
++++ pair8/expected.txt	2025-05-23 15:30:06.918182172 +0200
 @@ -1,20 +1,20 @@
 -1  Title: Deep Learning for Protein Structure Prediction  
 +1  Title: Enhanced Deep Learning for Protein Structure Modeling  

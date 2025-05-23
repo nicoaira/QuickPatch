@@ -1,5 +1,5 @@
 --- pair6/original.txt	2025-05-23 15:29:41.514993202 +0200
-+++ pair6/modified.txt	2025-05-23 15:29:45.040019678 +0200
++++ pair6/expected.txt	2025-05-23 15:29:45.040019678 +0200
 @@ -1,20 +1,23 @@
 -1  ## DataProcessor Class  
 -2  The DataProcessor handles loading, cleaning, and transforming raw input CSV files.  

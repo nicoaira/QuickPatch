@@ -1,5 +1,5 @@
 --- pair4/original.txt	2025-05-23 15:29:15.304793708 +0200
-+++ pair4/modified.txt	2025-05-23 15:29:18.461817988 +0200
++++ pair4/expected.txt	2025-05-23 15:29:18.461817988 +0200
 @@ -1,20 +1,20 @@
  1  European Summer Tour – Day 3 (2025-06-15)  
 -2  Destination: Rome, Italy  

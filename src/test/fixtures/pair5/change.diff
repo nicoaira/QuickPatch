@@ -1,5 +1,5 @@
 --- pair5/original.txt	2025-05-23 15:29:23.340855375 +0200
-+++ pair5/modified.txt	2025-05-23 15:29:26.556879929 +0200
++++ pair5/expected.txt	2025-05-23 15:29:26.556879929 +0200
 @@ -1,20 +1,20 @@
 -1  The old lighthouse stood silent against the raging storm.  
 -2  Waves crashed like thunder on the jagged rocks below.  

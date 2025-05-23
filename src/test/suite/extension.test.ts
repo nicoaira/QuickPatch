@@ -3,6 +3,7 @@ import * as assert from 'assert';
 import * as fs     from 'fs';
 import * as path   from 'path';
 import * as vscode from 'vscode';
+import * as os     from 'os'; // Added import for os module
 
 import { applyPatchToContent, applySelectedHunksToContent } from '../../extension';
 
@@ -53,47 +54,58 @@ describe('Quick Diff Apply – Unit & Integration Tests', () => {
       const diffFile = path.join(dir, 'change.diff');
       const diffText = fs.readFileSync(diffFile, 'utf-8');
 
-      // Parse the diff so we know which file it touches
       const parseDiff = require('parse-diff') as typeof import('parse-diff');
       const parsed    = parseDiff(diffText);
       if (parsed.length === 0) {
         throw new Error(`Fixture “${name}” contains no files in its diff`);
       }
 
-      // The actual file to open in the fixture is assumed to be 'original.txt'
-      // The paths in the diff (e.g., a/original.txt) are relative to a conceptual git root.
-      const sourceFileNameInFixture = 'original.txt'; // Convention for test fixtures
+      const sourceFileNameInFixture = 'original.txt';
       const origAbs     = path.join(dir, sourceFileNameInFixture);
-      const expectedAbs = path.join(dir, 'expected.txt');   // desired result
+      const expectedAbs = path.join(dir, 'expected.txt');
 
-      // 1) open fixture dir as the *only* workspace folder
-      await vscode.workspace.updateWorkspaceFolders(0, vscode.workspace.workspaceFolders ? vscode.workspace.workspaceFolders.length : 0, {
-        uri: vscode.Uri.file(dir)
-      });
+      // Create a temporary directory for this test run
+      const tempTestDir = fs.mkdtempSync(path.join(os.tmpdir(), `quickpatch-fixture-${name}-`));
+      const tempOrigAbs = path.join(tempTestDir, sourceFileNameInFixture);
 
-      // 2) put the diff on the clipboard
-      await vscode.env.clipboard.writeText(diffText);
+      try {
+        // Copy original.txt to the temporary location
+        fs.copyFileSync(origAbs, tempOrigAbs);
 
-      // 3) open the actual source file that the diff applies to
-      const doc = await vscode.workspace.openTextDocument(vscode.Uri.file(origAbs));
-      await vscode.window.showTextDocument(doc, { preview: false });
+        // 1) open fixture dir (temporary) as the *only* workspace folder
+        //    Note: For simplicity, we'll still open the original fixture dir in workspace context,
+        //    but operate on the temp file for diff application.
+        //    A more isolated approach might set tempTestDir as a workspace folder.
+        await vscode.workspace.updateWorkspaceFolders(0, vscode.workspace.workspaceFolders ? vscode.workspace.workspaceFolders.length : 0, {
+          uri: vscode.Uri.file(dir) // Keep original fixture dir for workspace context if needed by other parts
+        });
 
-      // 4) start the diff-review flow, passing the URI of the opened document
-      await vscode.commands.executeCommand('quick-diff-apply.applyDiff', doc.uri);
+        // 2) put the diff on the clipboard
+        await vscode.env.clipboard.writeText(diffText);
 
-      // 5) (non-interactive) accept all remaining hunks
-      await vscode.commands.executeCommand(
-        'quick-diff-apply.applyAllRemainingInFile',
-        doc.uri
-      );
+        // 3) open the TEMPORARY source file that the diff applies to
+        const doc = await vscode.workspace.openTextDocument(vscode.Uri.file(tempOrigAbs));
+        await vscode.window.showTextDocument(doc, { preview: false });
 
-      // 6) Save the document and compare its content to the expected result
-      await doc.save(); // Force save to ensure changes are written
-      
-      // Re-read the file content directly from disk to get the persisted state
-      const actual = fs.readFileSync(origAbs, 'utf-8'); 
-      const expected = fs.readFileSync(expectedAbs, 'utf-8');
-      assert.strictEqual(actual, expected, `Fixture "${name}" failed`);
+        // 4) start the diff-review flow, passing the URI of the TEMPORARY document
+        await vscode.commands.executeCommand('quick-diff-apply.applyDiff', doc.uri);
+
+        // 5) (non-interactive) accept all remaining hunks in the TEMPORARY file
+        await vscode.commands.executeCommand(
+          'quick-diff-apply.applyAllRemainingInFile',
+          doc.uri
+        );
+
+        // 6) Save the TEMPORARY document and compare its content to the expected result
+        await doc.save(); // Force save to ensure changes are written to the temporary file
+        
+        const actual = fs.readFileSync(tempOrigAbs, 'utf-8'); 
+        const expected = fs.readFileSync(expectedAbs, 'utf-8');
+        assert.strictEqual(actual, expected, `Fixture "${name}" failed`);
+      } finally {
+        // Clean up the temporary directory and its contents
+        fs.rmSync(tempTestDir, { recursive: true, force: true });
+      }
     }
 
     it('single-hunk replace',       () => runFixtureTest('single-hunk'));
