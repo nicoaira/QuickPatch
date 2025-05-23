@@ -1,0 +1,40 @@
+--- pair7/original.txt	2025-05-23 15:29:49.836055566 +0200
++++ pair7/modified.txt	2025-05-23 15:29:55.264096001 +0200
+@@ -1,20 +1,20 @@
+-1  Marketing Strategy Workshop – Agenda  
+-2  Date: 2025-06-02  
+-3  Time: 10:00 AM–3:00 PM  
+-4  Location: Conference Room B  
++1  Marketing Strategy Workshop – Detailed Agenda  
++2  Date: Tuesday, June 2, 2025  
++3  Time: 10:00 AM–3:30 PM  
++4  Venue: ACME HQ, Conference Room B  
+ 5  
+-6  10:00–10:15 Introductions and Objectives  
+-7  10:15–11:00 SWOT Analysis Presentation  
+-8  11:00–11:15 Coffee Break  
+-9  11:15–12:30 Brainstorming Session  
+-10  12:30–1:30 Lunch Break  
+-11  1:30–2:15 Competitor Benchmarking  
+-12  2:15–2:45 Action Plan Development  
+-13  2:45–3:00 Wrap-Up and Next Steps  
++6  10:00–10:20 Welcome, Introductions & Goals  
++7  10:20–11:05 SWOT Analysis Deep Dive  
++8  11:05–11:20 Networking Coffee Break  
++9  11:20–12:45 Creative Brainstorming Workshop  
++10 12:45–1:30 Catered Lunch Provided  
++11 1:30–2:20 Competitor Landscape Review  
++12 2:20–3:00 Strategic Action Plan Drafting  
++13 3:00–3:15 Summary of Decisions & Assignments  
+ 14  
+-15 Materials to Bring:  
+-16  • Laptop with charger  
+-17  • Recent market research report  
+-18  • Notepad and pen  
++15 Required Materials:  
++16  • Laptop + charger  
++17  • Updated market insights deck  
++18  • Sticky notes & markers  
+ 19  
+-20 Contact: marketing@acme.com  
++20 Organizer: marketing@acme.com | +1-800-MARKET  

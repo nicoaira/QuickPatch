@@ -1,5 +1,17 @@
---- a/original.txt
-+++ b/original.txt
-@@ -2,0 +3,2 @@
-+gamma
-+delta
+--- pure-add/original.txt	2025-05-23 16:07:33.006555010 +0200
++++ pure-add/expected.txt	2025-05-23 16:07:33.005555014 +0200
+@@ -1,8 +1,9 @@
+-alpha
+-gamma
+-delta
++Chapter 1: The Beginning
++The wind howled.
++Rain lashed against the window panes.
++It was a dark and stormy night.
++A lone figure walked down the street.
+ gamma
+ delta
++alpha
+ beta
+-Chapter 1: The Beginning
+-It was a dark and stormy night.

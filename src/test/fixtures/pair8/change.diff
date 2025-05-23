@@ -1,0 +1,37 @@
+--- pair8/original.txt	2025-05-23 15:30:00.525135009 +0200
++++ pair8/modified.txt	2025-05-23 15:30:06.918182172 +0200
+@@ -1,20 +1,20 @@
+-1  Title: Deep Learning for Protein Structure Prediction  
++1  Title: Enhanced Deep Learning for Protein Structure Modeling  
+ 2  
+ 3  Abstract:  
+-4  Predicting protein tertiary structure from primary sequence remains  
+-5  a grand challenge in computational biology. Recent advances in deep  
+-6  neural networks have achieved remarkable accuracy in modeling  
+-7  residue–residue distances and angles. We propose a novel architecture  
+-8  combining convolutional and transformer layers to capture local and  
+-9  global sequence features. Our method outperforms existing models on  
+-10 CASP14 benchmarks, reducing RMSD by 1.2 Å on average. Ablation studies  
+-11 demonstrate the impact of multi‐scale feature fusion. Code and  
+-12 trained models are available at our GitHub repository.  
++4  Accurate prediction of protein tertiary folds from amino acid  
++5  sequences continues to challenge the field of computational biology.  
++6  Leveraging recent breakthroughs in deep architectures, we introduce  
++7  a hybrid model integrating residual CNN blocks with self-attention  
++8  transformers to encode both local motifs and long-range interactions.  
++9  Benchmarking on CASP14 and CASP15 datasets shows a mean RMSD  
++10 improvement of 1.5 Å over AlphaFold2 baselines. Comprehensive ablation  
++11 and sensitivity analyses highlight the benefits of multi-scale fusion.  
++12  All code, pretrained weights, and detailed docs are hosted on GitHub.  
+ 13  
+-14 Keywords: protein folding, deep learning, transformers, computational  
+-15 biology, structure prediction  
++14 Keywords: protein folding, hybrid deep learning, self-attention,  
++15 bioinformatics, structure modeling  
+ 16  
+-17 Corresponding Author: Dr. A. Researcher, a.researcher@univ.edu  
++17 Corresponding Author: Dr. Athena Researcher, athena.res@univ.edu  
+ 18  
+-19 Submission: 2025-04-30  
++19 Date Submitted: April 30, 2025  
+ 20  

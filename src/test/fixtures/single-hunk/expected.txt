@@ -1,3 +1,4 @@
-line1
-bar
-line3
+The sky is blue.
+Grass is green.
+Sunflowers are yellow.
+Violets are blue.

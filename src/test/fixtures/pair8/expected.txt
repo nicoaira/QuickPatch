@@ -1,0 +1,20 @@
+1  Title: Enhanced Deep Learning for Protein Structure Modeling  
+2  
+3  Abstract:  
+4  Accurate prediction of protein tertiary folds from amino acid  
+5  sequences continues to challenge the field of computational biology.  
+6  Leveraging recent breakthroughs in deep architectures, we introduce  
+7  a hybrid model integrating residual CNN blocks with self-attention  
+8  transformers to encode both local motifs and long-range interactions.  
+9  Benchmarking on CASP14 and CASP15 datasets shows a mean RMSD  
+10 improvement of 1.5 Å over AlphaFold2 baselines. Comprehensive ablation  
+11 and sensitivity analyses highlight the benefits of multi-scale fusion.  
+12  All code, pretrained weights, and detailed docs are hosted on GitHub.  
+13  
+14 Keywords: protein folding, hybrid deep learning, self-attention,  
+15 bioinformatics, structure modeling  
+16  
+17 Corresponding Author: Dr. Athena Researcher, athena.res@univ.edu  
+18  
+19 Date Submitted: April 30, 2025  
+20  

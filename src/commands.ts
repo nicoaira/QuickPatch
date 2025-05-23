@@ -222,25 +222,30 @@ export function registerApplyDiffCommand(): vscode.Disposable {
             // try to start an inline review for that contextUri.
             if (contextUri && parsedFiles.length === 1) {
                 const fileDiff = parsedFiles[0];
-                const diffTargetHeaderPath = fileDiff.to || fileDiff.from;
+                const contextFileBaseName = nodePath.basename(contextUri.fsPath); // e.g., "original.txt"
 
-                if (diffTargetHeaderPath && diffTargetHeaderPath !== '/dev/null') {
-                    const diffFileBaseName = nodePath.basename(diffTargetHeaderPath); // e.g., "original.txt" from "a/original.txt"
-                    const contextFileBaseName = nodePath.basename(contextUri.fsPath); // e.g., "original.txt"
-
-                    // Check if the diff is a modification for the context file
-                    if (!fileDiff.new && !fileDiff.deleted && diffFileBaseName === contextFileBaseName) {
-                        try {
-                            await vscode.workspace.fs.stat(contextUri); // Ensure the context file exists
-                            const editor = await vscode.window.showTextDocument(contextUri, { preview: false });
-                            await startInlineDiffReview(editor, fileDiff, contextUri);
-                            return; // Inline review started successfully
-                        } catch (e: any) {
-                            vscode.window.showWarningMessage(`File ${contextUri.fsPath} (for inline review) not found or error: ${e.message}. Falling back to general diff view.`);
-                        }
-                    } else {
-                        vscode.window.showWarningMessage(`Clipboard diff is for "${diffFileBaseName}" (new: ${fileDiff.new}, deleted: ${fileDiff.deleted}), but context is "${contextFileBaseName}". Falling back to general diff preview, if applicable.`);
+                // Check if the diff's "from" field matches the context file.
+                // This is crucial for diffs generated like `diff -u original.txt expected.txt`
+                // where `fileDiff.from` is 'original.txt' and `fileDiff.to` is 'expected.txt'.
+                if (fileDiff.from && fileDiff.from !== '/dev/null' && 
+                    nodePath.basename(fileDiff.from) === contextFileBaseName &&
+                    !fileDiff.new && !fileDiff.deleted) {
+                    try {
+                        await vscode.workspace.fs.stat(contextUri); // Ensure the context file exists
+                        const editor = await vscode.window.showTextDocument(contextUri, { preview: false });
+                        await startInlineDiffReview(editor, fileDiff, contextUri);
+                        return; // Inline review started successfully
+                    } catch (e: any) {
+                        vscode.window.showWarningMessage(`File ${contextUri.fsPath} (for inline review) not found or error: ${e.message}. Falling back to general diff view.`);
                     }
+                } else {
+                    // Construct a more informative message if inline review isn't triggered with a context URI
+                    const fromName = fileDiff.from ? nodePath.basename(fileDiff.from) : 'N/A';
+                    const toName = fileDiff.to ? nodePath.basename(fileDiff.to) : 'N/A';
+                    vscode.window.showWarningMessage(
+                        `Clipboard diff (from: "${fromName}", to: "${toName}", new: ${fileDiff.new}, deleted: ${fileDiff.deleted}) ` +
+                        `not suitable for inline review on "${contextFileBaseName}". Falling back to general diff preview.`
+                    );
                 }
             }
             // --- END OF MODIFIED LOGIC FOR INLINE REVIEW ---

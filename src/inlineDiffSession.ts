@@ -23,9 +23,9 @@ export function applyPatchToContent(originalContent: string, fileDiff: File): st
     const chunk = fileDiff.chunks[i];
 
     const pos         = Math.max(chunk.oldStart - 1, 0);
-    const removeCount = chunk.oldLines;                         // ← only oldLines
+    const removeCount = chunk.oldLines;
     const insertLines = chunk.changes
-      .filter(c => c.type === 'add')                            // ← only “add”
+      .filter(c => c.type === 'add' || c.type === 'normal') // Corrected filter
       .map(  c => c.content.substring(1));
 
     out.splice(pos, removeCount, ...insertLines);
@@ -52,7 +52,7 @@ export function applySelectedHunksToContent(
       const pos         = Math.max(hunk.oldStart - 1, 0);
       const removeCount = hunk.oldLines;
       const insertLines = hunk.changes
-        .filter(c => c.type === 'add')
+        .filter(c => c.type === 'add' || c.type === 'normal') // Corrected filter
         .map(  c => c.content.substring(1));
 
       out.splice(pos, removeCount, ...insertLines);

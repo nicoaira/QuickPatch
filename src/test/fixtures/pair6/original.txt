@@ -1,0 +1,23 @@
+1  ## DataProcessor Class Overview  
+2  The DataProcessor manages ingestion, sanitization, and normalization of raw CSV inputs.  
+3  
+4  ### load_data(source)  
+5  - Loads CSV or TSV from the specified source.  
+6  - Auto-detects delimiter using sniffing logic.  
+7  - Throws FileNotFoundError for invalid paths or permissions.  
+8  - Logs row count upon successful load.  
+9  
+10 ### clean_data(df, drop_threshold=0.1)  
+11 - Removes rows with nulls exceeding threshold in key columns.  
+12 - Parses dates into timezone-aware datetime objects.  
+13 - Trims leading/trailing whitespace in text fields.  
+14 - Converts empty strings to NaN for consistency.  
+15  
+16 ### transform_data(df, rules, preview=False)  
+17 - Executes user rules on DataFrame.  
+18 - Returns transformed DataFrame and change summary if preview.  
+19 - Records operation metadata for audit.  
+20  
+21 ### save_data(df, out_path, index=False)  
+22 - Exports DataFrame to CSV at out_path without index.  
+23 - Supports gzip compression if filename ends with `.gz`.  

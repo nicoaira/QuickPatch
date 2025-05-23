@@ -1,0 +1,37 @@
+--- pair1/original.txt	2025-05-23 15:28:42.612538076 +0200
++++ pair1/modified.txt	2025-05-23 15:28:45.221558765 +0200
+@@ -1,20 +1,20 @@
+-1  Welcome to TechBytes Weekly, your go-to source for the latest in tech.  
+-2  In this week’s issue, we cover AI advancements, cybersecurity tips,  
+-3  and interviews with industry leaders.  
++1  Welcome to TechBytes Weekly, your one-stop source for cutting-edge tech.  
++2  In this edition, we highlight AI breakthroughs, cybersecurity hacks,  
++3  plus an exclusive interview with a leading innovator.  
+ 4  
+-5  Our first article explores the rise of edge computing in IoT devices,  
+-6  examining performance benchmarks and energy considerations.  
++5  Our lead story examines edge computing in modern IoT gadgets,  
++6  focusing on throughput metrics and power efficiency.  
+ 7  
+-8  Next, we dive into zero-trust architectures and how businesses can  
+-9  implement them to protect against modern threats.  
++8  Then we showcase zero-trust frameworks and practical steps companies  
++9  can adopt to thwart emerging cyber attacks.  
+ 10  
+-11 We then sit down with Jane Doe, CTO of InnovateX, to discuss her vision  
+-12 for democratizing machine learning tools.  
++11 We chat with Jane Doe, CTO at InnovateX, about her mission to make ML  
++12 tools accessible for every developer.  
+ 13  
+-14 Finally, don’t miss our roundup of must-have developer tools, including  
+-15 code editors, CI/CD platforms, and container orchestration systems.  
++14 Also, check out our curated list of essential dev tools—from code IDEs  
++15 and CI/CD services to container management solutions.  
+ 16  
+-17 Thanks for reading—we’ll be back next Friday with more insights!  
++17 See you next Friday with fresh analysis and deep dives!  
+ 18  
+-19 Stay curious, stay secure,  
+-20 The TechBytes Team  
++19 Keep innovating,  
++20 The TechBytes Editorial Team  

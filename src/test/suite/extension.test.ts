@@ -13,10 +13,10 @@ describe('Quick Diff Apply – Unit & Integration Tests', () => {
       const original = 'a\nb\nc\n';
       const fileDiff = {
         chunks: [{
-          oldStart: 2, oldLines: 1,
+          oldStart: 2, oldLines: 1, // Affects line 'b'
           newStart: 2, newLines: 1,
           changes: [
-            { type: 'normal', content: ' b' },
+            // Corrected: Represents deleting 'b' and adding 'B'
             { type: 'del',    content: '-b' },
             { type: 'add',    content: '+B' }
           ]
@@ -29,9 +29,10 @@ describe('Quick Diff Apply – Unit & Integration Tests', () => {
     it('applySelectedHunksToContent: pick only hunk 0', () => {
       const original = 'line1\nfoo\nline3\n';
       const allHunks = [{
-        oldStart: 2, oldLines: 1, newStart: 2, newLines: 1,
+        oldStart: 2, oldLines: 1, // Affects line 'foo'
+        newStart: 2, newLines: 1,
         changes: [
-          { type: 'normal', content: ' foo' },
+          // Corrected: Represents deleting 'foo' and adding 'bar'
           { type: 'del',    content: '-foo' },
           { type: 'add',    content: '+bar' }
         ]
@@ -86,15 +87,11 @@ describe('Quick Diff Apply – Unit & Integration Tests', () => {
         doc.uri
       );
 
-      // 6) re-open and compare to the expected result
-      // Force save if dirty, then re-read from disk or get latest text
-      if (doc.isDirty) {
-        await doc.save();
-      }
-      // It's generally safer to re-read or ensure the TextDocument is updated.
-      // Forcing a re-open or getting text from the current doc should be fine if applyEdit updates it.
-      const finalDoc = await vscode.workspace.openTextDocument(doc.uri); // Re-open to be safe
-      const actual   = finalDoc.getText();
+      // 6) Save the document and compare its content to the expected result
+      await doc.save(); // Force save to ensure changes are written
+      
+      // Re-read the file content directly from disk to get the persisted state
+      const actual = fs.readFileSync(origAbs, 'utf-8'); 
       const expected = fs.readFileSync(expectedAbs, 'utf-8');
       assert.strictEqual(actual, expected, `Fixture "${name}" failed`);
     }
@@ -102,5 +99,13 @@ describe('Quick Diff Apply – Unit & Integration Tests', () => {
     it('single-hunk replace',       () => runFixtureTest('single-hunk'));
     it('multi-hunk apply in order', () => runFixtureTest('multi-hunk'));
     it('pure-add creates new lines',() => runFixtureTest('pure-add'));
+    it('Test for pair1', () => runFixtureTest('pair1'));
+    it('Test for pair2', () => runFixtureTest('pair2'));
+    it('Test for pair3', () => runFixtureTest('pair3'));
+    it('Test for pair4', () => runFixtureTest('pair4'));
+    it('Test for pair5', () => runFixtureTest('pair5'));
+    it('Test for pair6', () => runFixtureTest('pair6'));
+    it('Test for pair7', () => runFixtureTest('pair7'));
+    it('Test for pair8', () => runFixtureTest('pair8'));
   });
 });

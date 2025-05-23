@@ -1,6 +1,12 @@
-Apricot
-Blueberry
-cherry
-date
-eggfruit
-fig
+Project Alpha:
+Status: Nearing Completion
+Deadline: Q3 End
+
+Team Members:
+- Alice
+- Bob
+- Carol (New)
+
+Notes:
+Development phase almost done.
+Testing phase to begin shortly.

@@ -1,12 +1,19 @@
---- a/original.txt
-+++ b/original.txt
-@@ -1,2 +1,2 @@
--apple
--banana
-+Apricot
-+Blueberry
-@@ -4,2 +4,3 @@
- date
--elderberry
-+eggfruit
-+fig
+--- multi-hunk/original.txt	2025-05-23 16:07:35.475545068 +0200
++++ multi-hunk/expected.txt	2025-05-23 16:07:35.475545068 +0200
+@@ -1,11 +1,12 @@
+ Project Alpha:
+-Status: In Progress
+-Deadline: Q3
++Status: Nearing Completion
++Deadline: Q3 End
+ 
+ Team Members:
+ - Alice
+ - Bob
++- Carol (New)
+ 
+ Notes:
+-Initial planning complete.
+-Development phase started.
++Development phase almost done.
++Testing phase to begin shortly.
