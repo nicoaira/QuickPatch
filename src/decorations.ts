@@ -5,8 +5,6 @@ export const addedLineDecorationOptions: vscode.DecorationRenderOptions = {
     isWholeLine: true,
     overviewRulerColor: new vscode.ThemeColor('diffEditor.insertedTextBackground'),
     overviewRulerLane: vscode.OverviewRulerLane.Left,
-    light: { after: { contentText: '+', color: new vscode.ThemeColor('diffEditor.insertedTextBackground') } },
-    dark: { after: { contentText: '+', color: new vscode.ThemeColor('diffEditor.insertedTextBackground') } },
 };
 
 export const removedLineDecorationOptions: vscode.DecorationRenderOptions = {
@@ -14,8 +12,6 @@ export const removedLineDecorationOptions: vscode.DecorationRenderOptions = {
     isWholeLine: true,
     overviewRulerColor: new vscode.ThemeColor('diffEditor.removedTextBackground'),
     overviewRulerLane: vscode.OverviewRulerLane.Left,
-    light: { after: { contentText: '-', color: new vscode.ThemeColor('diffEditor.removedTextBackground') } },
-    dark: { after: { contentText: '-', color: new vscode.ThemeColor('diffEditor.removedTextBackground') } },
 };
 
 export const skippedHunkDecorationOptions: vscode.DecorationRenderOptions = {
@@ -23,8 +19,8 @@ export const skippedHunkDecorationOptions: vscode.DecorationRenderOptions = {
     isWholeLine: true,
     overviewRulerColor: new vscode.ThemeColor('editorHint.foreground'),
     overviewRulerLane: vscode.OverviewRulerLane.Left,
-    light: { gutterIconPath: new vscode.ThemeIcon('debug-step-over').id, gutterIconSize: 'contain' },
-    dark: { gutterIconPath: new vscode.ThemeIcon('debug-step-over').id, gutterIconSize: 'contain' },
+    light:  { gutterIconPath: new vscode.ThemeIcon('debug-step-over').id, gutterIconSize: 'contain' },
+    dark:   { gutterIconPath: new vscode.ThemeIcon('debug-step-over').id, gutterIconSize: 'contain' },
 };
 
 export const appliedHunkDecorationOptions: vscode.DecorationRenderOptions = {
@@ -34,12 +30,11 @@ export const appliedHunkDecorationOptions: vscode.DecorationRenderOptions = {
     overviewRulerLane: vscode.OverviewRulerLane.Center,
 };
 
+// <-- this is the *new* “inserted-line” decoration type
 export const phantomInsertedLineDecorationType = vscode.window.createTextEditorDecorationType({
-    after: {
-        color: '#1eeb1e',
-        backgroundColor: '#eaffea',
-        margin: '0 0 0 20px',
-        fontStyle: 'italic',
-    },
-    isWholeLine: false,
+    backgroundColor: new vscode.ThemeColor('diffEditor.insertedTextBackground'),
+    isWholeLine: true,
+    overviewRulerColor: new vscode.ThemeColor('diffEditor.insertedTextBackground'),
+    overviewRulerLane: vscode.OverviewRulerLane.Left,
+    // we’ll supply the actual text via renderOptions in updateDecorations()
 });
