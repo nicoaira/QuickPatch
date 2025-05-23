@@ -3,6 +3,8 @@
   "displayName": "Quick Diff Apply",
   "description": "Applies a unified diff from the clipboard with interactive hunk-level review.",
   "version": "0.0.2",
+  "publisher": "NicolasAira",
+  "icon": "images/icon.png",
   "engines": {
     "vscode": "^1.99.0"
   },
