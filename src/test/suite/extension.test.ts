@@ -45,6 +45,25 @@ describe('Quick Diff Apply – Unit & Integration Tests', () => {
 
   /* ────────── integration tests ────────── */
   describe('Integration: VS Code commands + file fixtures', () => {
+    let originalLocalHistorySetting: boolean | undefined;
+
+    before(async () => {
+      // Disable local history to prevent ENOENT errors during doc.save() in tests
+      const config = vscode.workspace.getConfiguration('workbench');
+      originalLocalHistorySetting = config.get('localHistory.enabled');
+      if (originalLocalHistorySetting !== false) {
+        await config.update('localHistory.enabled', false, vscode.ConfigurationTarget.Global);
+      }
+    });
+
+    after(async () => {
+      // Restore original local history setting
+      if (originalLocalHistorySetting !== undefined && originalLocalHistorySetting !== false) {
+        const config = vscode.workspace.getConfiguration('workbench');
+        await config.update('localHistory.enabled', originalLocalHistorySetting, vscode.ConfigurationTarget.Global);
+      }
+    });
+
     /** path now points to *source* tree, not transpiled out/ */
     const fixturesRoot = path.join(__dirname, '../../../src/test/fixtures');
 
