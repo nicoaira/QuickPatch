@@ -1,0 +1,12 @@
+--- a/original.txt
++++ b/original.txt
+@@ -1,2 +1,2 @@
+-apple
+-banana
++Apricot
++Blueberry
+@@ -4,2 +4,3 @@
+ date
+-elderberry
++eggfruit
++fig

@@ -1,0 +1,7 @@
+--- a/original.txt
++++ b/original.txt
+@@ -1,3 +1,3 @@
+ line1
+-foo
++bar
+ line3

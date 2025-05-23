@@ -1,0 +1,3 @@
+line1
+bar
+line3

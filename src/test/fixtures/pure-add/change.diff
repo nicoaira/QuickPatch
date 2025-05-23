@@ -1,0 +1,5 @@
+--- a/original.txt
++++ b/original.txt
+@@ -2,0 +3,2 @@
++gamma
++delta

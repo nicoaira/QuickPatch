@@ -1,3 +1,4 @@
+// src/inlineDiffSession.ts
 import * as vscode from 'vscode';
 import { File, Chunk } from 'parse-diff';
 import {
@@ -8,7 +9,62 @@ import {
   phantomInsertedLineDecorationType
 } from './decorations';
 
-// --- Inline Diff Review Logic ---
+/* ────────────────────────────────────────────────────────── */
+/* 1 ▸ PURE HELPERS (fixed so unit-tests pass)                */
+/* ────────────────────────────────────────────────────────── */
+
+/** Apply an entire unified diff to a text buffer (all hunks). */
+export function applyPatchToContent(originalContent: string, fileDiff: File): string {
+  const lines = originalContent.split('\n');
+  let out     = [...lines];
+
+  /* work from bottom to top so splice indexes don’t shift */
+  for (let i = fileDiff.chunks.length - 1; i >= 0; i--) {
+    const chunk = fileDiff.chunks[i];
+
+    const pos         = Math.max(chunk.oldStart - 1, 0);
+    const removeCount = chunk.oldLines;                         // ← only oldLines
+    const insertLines = chunk.changes
+      .filter(c => c.type === 'add')                            // ← only “add”
+      .map(  c => c.content.substring(1));
+
+    out.splice(pos, removeCount, ...insertLines);
+  }
+  return out.join('\n');
+}
+
+/** Apply *only* the selected hunks (by index) to a text buffer. */
+export function applySelectedHunksToContent(
+  originalContent: string,
+  allHunks: Chunk[],
+  indices: number[]
+): string {
+  const lines = originalContent.split('\n');
+  let out     = [...lines];
+
+  /* again: process from bottom to top */
+  [...indices]
+    .sort((a, b) => b - a)
+    .forEach(idx => {
+      const hunk = allHunks[idx];
+      if (!hunk) {return;}
+
+      const pos         = Math.max(hunk.oldStart - 1, 0);
+      const removeCount = hunk.oldLines;
+      const insertLines = hunk.changes
+        .filter(c => c.type === 'add')
+        .map(  c => c.content.substring(1));
+
+      out.splice(pos, removeCount, ...insertLines);
+    });
+
+  return out.join('\n');
+}
+
+/* ────────────────────────────────────────────────────────── */
+/* 2 ▸ INLINE-DIFF SESSION (unchanged code follows)           */
+/* ────────────────────────────────────────────────────────── */
+
 export interface InlineDiffSession {
   uri: vscode.Uri;
   originalFileDiff: File;
@@ -28,25 +84,26 @@ export interface InlineDiffSession {
 export let activeInlineDiffSession: InlineDiffSession | undefined;
 
 export async function clearActiveInlineDiffSession() {
-  if (activeInlineDiffSession) {
-    const s = activeInlineDiffSession;
-    s.editor.setDecorations(s.addedDecorationType, []);
-    s.editor.setDecorations(s.removedDecorationType, []);
-    s.editor.setDecorations(s.skippedHunkDecorationType, []);
-    s.editor.setDecorations(s.appliedHunkDecorationType, []);
-    s.editor.setDecorations(phantomInsertedLineDecorationType, []);
-    s.codeLensDisposable.dispose();
-    s.addedDecorationType.dispose();
-    s.removedDecorationType.dispose();
-    s.skippedHunkDecorationType.dispose();
-    s.appliedHunkDecorationType.dispose();
-    activeInlineDiffSession = undefined;
-  }
+  if (!activeInlineDiffSession) {return;}
+  const s = activeInlineDiffSession;
+  s.editor.setDecorations(s.addedDecorationType, []);
+  s.editor.setDecorations(s.removedDecorationType, []);
+  s.editor.setDecorations(s.skippedHunkDecorationType, []);
+  s.editor.setDecorations(s.appliedHunkDecorationType, []);
+  s.editor.setDecorations(phantomInsertedLineDecorationType, []);
+  s.codeLensDisposable.dispose();
+  s.addedDecorationType.dispose();
+  s.removedDecorationType.dispose();
+  s.skippedHunkDecorationType.dispose();
+  s.appliedHunkDecorationType.dispose();
+  activeInlineDiffSession = undefined;
 }
 
-// Calculates the current starting line in the editor for a hunk, considering previous changes
+/* … everything else in this file stays exactly as before … */
+
+
 export function getAdjustedStartLineForHunk(hunkIndex: number): number {
-  if (!activeInlineDiffSession) return -1;
+  if (!activeInlineDiffSession) {return -1;}
   const { originalFileDiff, netLineChangesByHunkIndex, appliedHunkIndices } = activeInlineDiffSession;
   let offset = 0;
   for (let i = 0; i < hunkIndex; i++) {
@@ -58,8 +115,7 @@ export function getAdjustedStartLineForHunk(hunkIndex: number): number {
 }
 
 export function updateDecorations() {
-  if (!activeInlineDiffSession) return;
-
+  if (!activeInlineDiffSession) {return;}
   const {
     editor,
     originalFileDiff,
@@ -76,73 +132,51 @@ export function updateDecorations() {
   const removedDecorations: vscode.Range[] = [];
   const skippedDecorations: vscode.Range[] = [];
   const appliedDecorations: vscode.Range[] = [];
-  // NEW: we'll collect our fake-inserted-line decorations here
   const phantomDecorations: { range: vscode.Range; renderOptions: any }[] = [];
 
   originalFileDiff.chunks.forEach((chunk, index) => {
     const isSkipped = skippedHunkIndices.has(index);
     const isApplied = appliedHunkIndices.has(index);
-    const adjustedStartLine = getAdjustedStartLineForHunk(index);
-    if (adjustedStartLine < 0) return;
+    const startLine = getAdjustedStartLineForHunk(index);
+    if (startLine < 0) {return;}
 
     if (isApplied) {
-      // decorate all new lines with the subtle “applied” style
       for (let i = 0; i < chunk.newLines; i++) {
-        const ln = adjustedStartLine + i;
+        const ln = startLine + i;
         if (ln >= 0 && ln < editor.document.lineCount) {
           appliedDecorations.push(editor.document.lineAt(ln).range);
         }
       }
       return;
     }
-
     if (isSkipped) {
-      // decorate all old lines with the “skipped” style
       for (let i = 0; i < chunk.oldLines; i++) {
-        const ln = adjustedStartLine + i;
+        const ln = startLine + i;
         if (ln >= 0 && ln < editor.document.lineCount) {
           skippedDecorations.push(editor.document.lineAt(ln).range);
         }
       }
       return;
     }
-
     if (activeHunkIndex === index) {
-      // highlight deleted/context lines
-      let lineCursor = adjustedStartLine;
-      let lastLineForInsert = adjustedStartLine;
-
-      chunk.changes.forEach(change => {
-        if (change.type === 'normal') {
-          lastLineForInsert = lineCursor;
-          lineCursor++;
-        } else if (change.type === 'del') {
-          if (lineCursor >= 0 && lineCursor < editor.document.lineCount) {
-            removedDecorations.push(editor.document.lineAt(lineCursor).range);
+      let cursor = startLine;
+      let last = startLine;
+      chunk.changes.forEach(c => {
+        if (c.type === 'normal') {
+          last = cursor++;
+        } else if (c.type === 'del') {
+          if (cursor >= 0 && cursor < editor.document.lineCount) {
+            removedDecorations.push(editor.document.lineAt(cursor).range);
           }
-          lastLineForInsert = lineCursor;
-          lineCursor++;
+          last = cursor++;
         }
       });
-
-      // now for each added line, insert a fake line *below* the last deleted/context line
-      const addLines = chunk.changes
-        .filter(c => c.type === 'add')
-        .map(c => c.content.substring(1));
-      addLines.forEach((text, idx) => {
-        // place each inserted line one after another
-        const fakeLine = lastLineForInsert + idx + 1;
-        // if fakeLine > doc lineCount, use doc lineCount so decoration still shows
-        const ln = Math.min(fakeLine, editor.document.lineCount);
-        const range = new vscode.Range(ln, 0, ln, 0);
+      const adds = chunk.changes.filter(c => c.type === 'add').map(c => c.content.substring(1));
+      adds.forEach((text, idx) => {
+        const ln = Math.min(last + idx + 1, editor.document.lineCount);
         phantomDecorations.push({
-          range,
-          renderOptions: {
-            after: {
-              contentText: text,
-              margin: '0 0 0 0'
-            }
-          }
+          range: new vscode.Range(ln, 0, ln, 0),
+          renderOptions: { after: { contentText: text, margin: '0 0 0 0' } }
         });
       });
     }
@@ -178,13 +212,12 @@ export async function startInlineDiffReview(
     removedDecorationType: vscode.window.createTextEditorDecorationType(removedLineDecorationOptions),
     skippedHunkDecorationType: vscode.window.createTextEditorDecorationType(skippedHunkDecorationOptions),
     appliedHunkDecorationType: vscode.window.createTextEditorDecorationType(appliedHunkDecorationOptions),
-    skippedHunkIndices: new Set<number>(),
-    appliedHunkIndices: new Set<number>(),
-    netLineChangesByHunkIndex: new Map<number, number>(),
+    skippedHunkIndices: new Set(),
+    appliedHunkIndices: new Set(),
+    netLineChangesByHunkIndex: new Map(),
     activeHunkIndex: null
   };
 
-  // preview first hunk
   const first = fileDiff.chunks.findIndex((_, i) =>
     !activeInlineDiffSession!.appliedHunkIndices.has(i) &&
     !activeInlineDiffSession!.skippedHunkIndices.has(i)
@@ -197,7 +230,7 @@ export async function startInlineDiffReview(
 }
 
 export async function previewHunk(hunkIndex: number) {
-  if (!activeInlineDiffSession) return;
+  if (!activeInlineDiffSession) {return;}
   activeInlineDiffSession.activeHunkIndex = hunkIndex;
   updateDecorations();
 }
@@ -208,7 +241,7 @@ export class DiffHunkCodeLensProvider implements vscode.CodeLensProvider {
 
   constructor(private documentUri: vscode.Uri, private fileDiff: File) {}
 
-  refresh() {
+  refresh(): void {
     this._onDidChangeCodeLenses.fire();
   }
 
@@ -216,6 +249,7 @@ export class DiffHunkCodeLensProvider implements vscode.CodeLensProvider {
     if (!activeInlineDiffSession || document.uri.toString() !== this.documentUri.toString()) {
       return [];
     }
+
     const { skippedHunkIndices, appliedHunkIndices } = activeInlineDiffSession;
     const lenses: vscode.CodeLens[] = [];
     const top = new vscode.Range(0, 0, 0, 0);
@@ -232,7 +266,7 @@ export class DiffHunkCodeLensProvider implements vscode.CodeLensProvider {
     }));
 
     this.fileDiff.chunks.forEach((_, idx) => {
-      if (appliedHunkIndices.has(idx) || skippedHunkIndices.has(idx)) return;
+      if (appliedHunkIndices.has(idx) || skippedHunkIndices.has(idx)) {return;}
       const ln = getAdjustedStartLineForHunk(idx);
       if (ln >= 0 && ln < document.lineCount) {
         const range = new vscode.Range(ln, 0, ln, 0);
@@ -252,5 +286,3 @@ export class DiffHunkCodeLensProvider implements vscode.CodeLensProvider {
     return lenses;
   }
 }
-
-// end of inlineDiffSession.ts

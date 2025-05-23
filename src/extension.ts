@@ -1,30 +1,44 @@
+// src/extension.ts
+
 import * as vscode from 'vscode';
-import { clearActiveInlineDiffSession } from './inlineDiffSession';
-import { 
-    registerApplyHunkOnlyCommand,
-    registerSkipHunkCommand,
-    registerApplyAllRemainingCommand,
-    registerDiscardAllCommand,
-    registerApplyDiffCommand,
-    registerHelloWorldCommand
+
+// bring in inline-diff session API (including the two pure helpers)
+import {
+  clearActiveInlineDiffSession,
+  applyPatchToContent,
+  applySelectedHunksToContent
+} from './inlineDiffSession';
+
+// bring in your command-factory functions
+import {
+  registerApplyHunkOnlyCommand,
+  registerSkipHunkCommand,
+  registerApplyAllRemainingCommand,
+  registerDiscardAllCommand,
+  registerApplyDiffCommand,
+  registerHelloWorldCommand
 } from './commands';
 
-// This method is called when your extension is activated
-export function activate(context: vscode.ExtensionContext) {
-    console.log('Congratulations, your extension "quick-diff-apply" is now active!');
+// re-export the two helpers so tests can import them from extension.ts:
+export { applyPatchToContent, applySelectedHunksToContent };
 
-    // Register all commands
-    context.subscriptions.push(
-        registerApplyHunkOnlyCommand(),
-        registerSkipHunkCommand(),
-        registerApplyAllRemainingCommand(),
-        registerDiscardAllCommand(),
-        registerApplyDiffCommand(),
-        registerHelloWorldCommand()
-    );
+export function activate(context: vscode.ExtensionContext) {
+  console.log(
+    'Congratulations, your extension "quick-diff-apply" is now active!'
+  );
+
+  // Register all commands in one call
+  context.subscriptions.push(
+    registerApplyHunkOnlyCommand(),
+    registerSkipHunkCommand(),
+    registerApplyAllRemainingCommand(),
+    registerDiscardAllCommand(),
+    registerApplyDiffCommand(),
+    registerHelloWorldCommand()
+  );
 }
 
-// This method is called when your extension is deactivated
 export function deactivate() {
-    clearActiveInlineDiffSession(); // Ensure cleanup on deactivation
+  // clean up inline-diff session state
+  clearActiveInlineDiffSession();
 }
