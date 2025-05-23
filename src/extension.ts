@@ -44,6 +44,16 @@ const appliedHunkDecorationOptions: vscode.DecorationRenderOptions = {
     overviewRulerLane: vscode.OverviewRulerLane.Center,
 };
 
+const phantomInsertedLineDecorationType = vscode.window.createTextEditorDecorationType({
+    after: {
+        color: '#1eeb1e', // bright green for visibility
+        backgroundColor: '#eaffea',
+        margin: '0 0 0 20px',
+        fontStyle: 'italic',
+    },
+    isWholeLine: false,
+});
+
 // Helper function to apply patch to content (can be extracted or remain inline)
 function applyPatchToContent(originalContent: string, fileDiff: File): string {
     const lines = originalContent.split('\n');
@@ -99,15 +109,17 @@ interface InlineDiffSession {
     // Stores the net line change (newLines - oldLines) for each hunk *once applied*
     // Key: original hunk index, Value: net line change
     netLineChangesByHunkIndex: Map<number, number>; 
+    activeHunkIndex: number | null;
 }
 let activeInlineDiffSession: InlineDiffSession | undefined;
 
-function clearActiveInlineDiffSession() {
+async function clearActiveInlineDiffSession() {
     if (activeInlineDiffSession) {
         activeInlineDiffSession.editor.setDecorations(activeInlineDiffSession.addedDecorationType, []);
         activeInlineDiffSession.editor.setDecorations(activeInlineDiffSession.removedDecorationType, []);
         activeInlineDiffSession.editor.setDecorations(activeInlineDiffSession.skippedHunkDecorationType, []);
         activeInlineDiffSession.editor.setDecorations(activeInlineDiffSession.appliedHunkDecorationType, []); // Clear applied
+        activeInlineDiffSession.editor.setDecorations(phantomInsertedLineDecorationType, []); // Clear phantom
         activeInlineDiffSession.codeLensDisposable.dispose();
         activeInlineDiffSession.addedDecorationType.dispose();
         activeInlineDiffSession.removedDecorationType.dispose();
@@ -133,12 +145,13 @@ function getAdjustedStartLineForHunk(hunkIndex: number): number {
 function updateDecorations() {
     if (!activeInlineDiffSession) return;
 
-    const { editor, originalFileDiff, skippedHunkIndices, appliedHunkIndices, addedDecorationType, removedDecorationType, skippedHunkDecorationType, appliedHunkDecorationType } = activeInlineDiffSession;
+    const { editor, originalFileDiff, skippedHunkIndices, appliedHunkIndices, addedDecorationType, removedDecorationType, skippedHunkDecorationType, appliedHunkDecorationType, activeHunkIndex } = activeInlineDiffSession;
     
     const addedDecorations: vscode.Range[] = [];
     const removedDecorations: vscode.Range[] = [];
     const skippedDecorations: vscode.Range[] = [];
     const appliedDecorations: vscode.Range[] = []; // For hunks that have been applied
+    const phantomDecorations: { range: vscode.Range, renderOptions: any }[] = [];
 
     originalFileDiff.chunks.forEach((chunk, index) => {
         const isSkipped = skippedHunkIndices.has(index);
@@ -171,40 +184,53 @@ function updateDecorations() {
             return; // Don't process further for skipped hunks
         }
 
-        // Normal processing for active (not skipped, not applied) hunks
-        let lineCursorInOriginal = adjustedStartLine;
-        chunk.changes.forEach(change => {
-            if (change.type === 'normal') {
-                if (editor.document.lineCount > lineCursorInOriginal && lineCursorInOriginal >=0) {
-                    // No specific decoration for normal lines within an active hunk, or could be subtle
+        // Only preview the currently active hunk
+        if (activeHunkIndex === index) {
+            let lineCursor = adjustedStartLine;
+            let lastLineForPhantom = adjustedStartLine;
+            chunk.changes.forEach(change => {
+                if (change.type === 'normal') {
+                    lastLineForPhantom = lineCursor;
+                    lineCursor++;
+                } else if (change.type === 'del') {
+                    if (editor.document.lineCount > lineCursor && lineCursor >= 0) {
+                        removedDecorations.push(editor.document.lineAt(lineCursor).range);
+                    }
+                    lastLineForPhantom = lineCursor;
+                    lineCursor++;
                 }
-                lineCursorInOriginal++;
-            } else if (change.type === 'add') {
-                // For 'add', the decoration is typically on the line *before* or where it's inserted.
-                // This is tricky as the line doesn't exist yet.
-                // We'll mark the line it's conceptually added *after* or at.
-                const lineForAddMarker = Math.max(0, lineCursorInOriginal -1); 
-                 if (editor.document.lineCount > lineForAddMarker && lineForAddMarker >=0) {
-                     addedDecorations.push(editor.document.lineAt(lineForAddMarker).range); // Mark line before
-                }
-                // Additions don't consume lines from the original for decoration purposes here
-            } else if (change.type === 'del') {
-                 if (editor.document.lineCount > lineCursorInOriginal && lineCursorInOriginal >=0) {
-                    removedDecorations.push(editor.document.lineAt(lineCursorInOriginal).range);
-                }
-                lineCursorInOriginal++;
+            });
+            // Now, show all added lines as stacked phantom lines after the last deleted/context line
+            let addLines: string[] = chunk.changes.filter(c => c.type === 'add').map(c => c.content.substring(1));
+            if (addLines.length > 0) {
+                const range = new vscode.Range(lastLineForPhantom, 0, lastLineForPhantom, 0);
+                phantomDecorations.push({
+                    range,
+                    renderOptions: {
+                        after: {
+                            contentText: addLines.map(l => `+ ${l}`).join('\n'),
+                            color: '#22863a',
+                            backgroundColor: '#eaffea',
+                            margin: '0 0 0 0',
+                            fontWeight: 'bold',
+                            fontStyle: 'normal',
+                            fontSize: '1em',
+                        }
+                    }
+                });
             }
-        });
+        }
     });
     
     editor.setDecorations(addedDecorationType, addedDecorations);
     editor.setDecorations(removedDecorationType, removedDecorations);
     editor.setDecorations(skippedHunkDecorationType, skippedDecorations);
     editor.setDecorations(appliedHunkDecorationType, appliedDecorations); // Set applied decorations
+    editor.setDecorations(phantomInsertedLineDecorationType, phantomDecorations); // Set phantom decorations
 }
 
 async function startInlineDiffReview(editor: vscode.TextEditor, fileDiff: File, targetUri: vscode.Uri) {
-    clearActiveInlineDiffSession(); 
+    await clearActiveInlineDiffSession(); 
 
     const codeLensProvider = new DiffHunkCodeLensProvider(targetUri, fileDiff);
     const codeLensDisposable = vscode.languages.registerCodeLensProvider(
@@ -225,9 +251,24 @@ async function startInlineDiffReview(editor: vscode.TextEditor, fileDiff: File, 
         skippedHunkIndices: new Set<number>(),
         appliedHunkIndices: new Set<number>(), // Initialize applied set
         netLineChangesByHunkIndex: new Map<number, number>(), // Initialize map
+        activeHunkIndex: null,
     };
+    // Find the first unprocessed hunk
+    const firstHunkIndex = fileDiff.chunks.findIndex((_, idx) =>
+        !activeInlineDiffSession!.appliedHunkIndices.has(idx) && !activeInlineDiffSession!.skippedHunkIndices.has(idx)
+    );
+    if (firstHunkIndex !== -1) {
+        await previewHunk(firstHunkIndex);
+    }
     updateDecorations(); 
     activeInlineDiffSession.codeLensProvider.refresh(); 
+}
+
+// Preview a hunk: show phantom lines and decorate
+async function previewHunk(hunkIndex: number) {
+    if (!activeInlineDiffSession) return;
+    activeInlineDiffSession.activeHunkIndex = hunkIndex;
+    updateDecorations();
 }
 
 class DiffHunkCodeLensProvider implements vscode.CodeLensProvider {
@@ -316,6 +357,7 @@ function applySelectedHunksToContent(originalContent: string, allHunks: Chunk[],
         // This logic is from applyPatchToContent, needs to be adapted if newStart is relative to original
         // For applying hunks to an original string, oldStart and oldLines are key for removal,
         // and then new lines are inserted.
+        // The splice point should be based on oldStart for the original content.
         // The splice point should be based on oldStart for the original content.
         let splicePoint = chunk.oldStart -1;
         const linesToRemoveCount = chunk.oldLines;
@@ -451,6 +493,13 @@ export function activate(context: vscode.ExtensionContext) {
         }
         // DO NOT clearActiveInlineDiffSession() here by default, to allow continuation.
         // It's cleared if all hunks are processed or if "Discard All" etc. is chosen.
+        // After applying, preview the next unprocessed hunk
+        const nextHunkIndex = originalFileDiff.chunks.findIndex((_, idx) =>
+            !appliedHunkIndices.has(idx) && !skippedHunkIndices.has(idx)
+        );
+        if (nextHunkIndex !== -1) {
+            await previewHunk(nextHunkIndex);
+        }
     });
 
     const skipHunkCommand = vscode.commands.registerCommand('quick-diff-apply.skipHunk', async (fileUri: vscode.Uri, hunkIndex: number) => {
@@ -466,6 +515,13 @@ export function activate(context: vscode.ExtensionContext) {
         if (allHunksProcessed) {
             vscode.window.showInformationMessage("All hunks processed.");
             clearActiveInlineDiffSession();
+        }
+        // Preview next unprocessed hunk
+        const nextHunkIndex = originalFileDiff.chunks.findIndex((_, idx) =>
+            !appliedHunkIndices.has(idx) && !skippedHunkIndices.has(idx)
+        );
+        if (nextHunkIndex !== -1) {
+            await previewHunk(nextHunkIndex);
         }
     });
 
