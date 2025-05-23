@@ -1,12 +1,11 @@
 Project Alpha:
-Status: Nearing Completion
-Deadline: Q3 End
+Status: In Progress
+Deadline: Q3
 
 Team Members:
 - Alice
 - Bob
-- Carol (New)
 
 Notes:
-Development phase almost done.
-Testing phase to begin shortly.
+Initial planning complete.
+Development phase started.
